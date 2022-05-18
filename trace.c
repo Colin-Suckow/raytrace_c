@@ -56,7 +56,7 @@ int main() {
 
   Color *framebuffer = malloc(IMAGE_WIDTH * IMAGE_HEIGHT * sizeof(Color));
 
-  SceneObject sphere = sphereInit((Vec3f) {4.7, -2.5, -7.}, 1.);
+  SceneObject sphere = sphereInit((Vec3f) {4.7, -2.5, -7.}, 2.);
 
   SceneObject *sceneObjects = (SceneObject *) malloc(sizeof(SceneObject));
   sceneObjects[0] = sphere;
