@@ -1,5 +1,5 @@
-trace: trace.c image.c vector.c
-	gcc -o trace trace.c image.c vector.c -lm
+trace: trace.c image.c vector.c sphere.c scene.c
+	gcc -Wall -o trace trace.c image.c vector.c sphere.c scene.c -lm
 
 run: trace
 	./trace

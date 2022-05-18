@@ -5,43 +5,23 @@
 
 #include "vector.h"
 #include "image.h"
+#include "scene.h"
+#include "sphere.h"
 
 #define IMAGE_WIDTH 640
 #define IMAGE_HEIGHT 480
-#define FOV 1.39626 //80 deg
+#define FOV 50 //50 deg
 
-typedef struct {
-  Vec3f origin;
-  Vec3f dir;
-} Ray;
-
-bool solveQuadratic(const float a, const float b, const float c, float *x0, float *x1) 
-{ 
-    float discr = b * b - 4 * a * c; 
-    if (discr < 0) return false; 
-    else if (discr == 0) *x0 = *x1 = - 0.5 * b / a; 
-    else { 
-        float q = (b > 0) ? 
-            -0.5 * (b + sqrt(discr)) : 
-            -0.5 * (b - sqrt(discr)); 
-        *x0 = q / a; 
-        *x1 = c / q; 
-    } 
-    if (x0 > x1) {
-      float temp = *x0;
-      *x0 = *x1;
-      *x1 = temp;
-    }
- 
-    return true; 
+float deg2rad(float deg) {
+  return deg * 3.14159 / 180.;
 }
 
-void rayInit(Ray *ray, int px, int py, float imageAspectRatio, float frameWidth) {
-  float pixelNDCX = ((float) px + 0.5) / (float) IMAGE_WIDTH;
-  float pixelNDCY = ((float) py + 0.5) / (float) IMAGE_HEIGHT;
+void createCameraRay(Ray *ray, int px, int py, float imageAspectRatio, float frameWidth) {
+  float pixelNDCX = (2.0 * ((float) px + 0.5)) / ((float) IMAGE_WIDTH - 1);
+  float pixelNDCY = (1.0 - 2.0 * ((float) py + 0.5)) / ((float) IMAGE_HEIGHT);
 
-  float pixelCameraX = (2. * pixelNDCX - 1) * imageAspectRatio * frameWidth;
-  float pixelCameraY = 1 - 2. * pixelNDCY * frameWidth;
+  float pixelCameraX = pixelNDCX * frameWidth * imageAspectRatio;
+  float pixelCameraY = pixelNDCY * frameWidth;
   Vec3f origin = {
     .x = 0,
     .y = 0,
@@ -57,33 +37,48 @@ void rayInit(Ray *ray, int px, int py, float imageAspectRatio, float frameWidth)
   ray->origin = origin;
 } 
 
-Color castRay(Ray *ray) {
+Color castRay(Ray *ray, Scene *scene) {
   Color result = {0};
-  result.r = (ray->dir.x + 1) * 128;
-  result.g = (ray->dir.y + 1) * 128;
+  
+  for(int i = 0; i < scene->objectCount; i++) {
+    float t;
+    if (scene->objects[i].intersect(ray, scene->objects[i].object, &t)) {
+      return (Color) {255, 0, 0};
+    }
+  }
   
   return result;
 }
 
 int main() {
   float imageAspectRatio = (float) IMAGE_WIDTH / (float) IMAGE_HEIGHT;
-  float frameWidth = tanf(FOV / 2.);
+  float frameWidth = tanf(deg2rad((float) FOV) / 2.);
 
   Color *framebuffer = malloc(IMAGE_WIDTH * IMAGE_HEIGHT * sizeof(Color));
+
+  SceneObject sphere = sphereInit((Vec3f) {4.7, -2.5, -7.}, 1.);
+
+  SceneObject *sceneObjects = (SceneObject *) malloc(sizeof(SceneObject));
+  sceneObjects[0] = sphere;
+
+  Scene scene = {
+    .objectCount = 1,
+    .objects = sceneObjects
+  };
 
   for(int y=0; y < IMAGE_HEIGHT; y++) {
     for(int x=0; x < IMAGE_WIDTH; x++) {
       Ray ray;
-      rayInit(&ray, x, y, imageAspectRatio, frameWidth);
+      createCameraRay(&ray, x, y, imageAspectRatio, frameWidth);
       int fbIndex = y * IMAGE_WIDTH + x;
-      framebuffer[fbIndex] = castRay(&ray);
+      framebuffer[fbIndex] = castRay(&ray, &scene);
     }
   }
 
   FILE *outPPM = fopen("out.ppm", "wb");
   writePPM(outPPM, framebuffer, IMAGE_WIDTH, IMAGE_HEIGHT);
   fclose(outPPM);
-
+  sceneCleanup(&scene);
   free(framebuffer);
   return 0;
 }
