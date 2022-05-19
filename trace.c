@@ -2,15 +2,16 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdbool.h>
+#include <omp.h>
 
 #include "vector.h"
 #include "image.h"
 #include "scene.h"
 #include "sphere.h"
 
-#define IMAGE_WIDTH 640
-#define IMAGE_HEIGHT 480
-#define FOV 50 //50 deg
+#define IMAGE_WIDTH 1920
+#define IMAGE_HEIGHT 1080
+#define FOV 30 // deg
 
 float deg2rad(float deg) {
   return deg * 3.14159 / 180.;
@@ -43,11 +44,24 @@ Color castRay(Ray *ray, Scene *scene) {
   for(int i = 0; i < scene->objectCount; i++) {
     float t;
     if (scene->objects[i].intersect(ray, scene->objects[i].object, &t)) {
-      return (Color) {255, 0, 0};
+      return scene->objects[i].paint(ray, scene->objects[i].object, t, &scene->envSettings);
     }
   }
   
   return result;
+}
+
+EnvironmentSettings envInit() {
+  EnvironmentSettings env;
+  Vec3f sun = {
+    .x = 20.,
+    .y = 20.,
+    .z = 0.
+  };
+  vec3fNormalize(&sun);
+  env.sunDir = sun;
+  env.globalLightIntensity = 0.3;
+  return env;
 }
 
 int main() {
@@ -56,16 +70,22 @@ int main() {
 
   Color *framebuffer = malloc(IMAGE_WIDTH * IMAGE_HEIGHT * sizeof(Color));
 
-  SceneObject sphere = sphereInit((Vec3f) {4.7, -2.5, -7.}, 2.);
+  SceneObject sphere = sphereInit((Vec3f) {3.5, -1.8, -7.}, 1.);
 
   SceneObject *sceneObjects = (SceneObject *) malloc(sizeof(SceneObject));
   sceneObjects[0] = sphere;
 
+  EnvironmentSettings env = envInit();
+
   Scene scene = {
     .objectCount = 1,
-    .objects = sceneObjects
+    .objects = sceneObjects,
+    .envSettings = env
   };
-
+  omp_set_num_threads(12);
+  double start, end;
+  start = omp_get_wtime();
+  #pragma omp parallel for collapse(2)
   for(int y=0; y < IMAGE_HEIGHT; y++) {
     for(int x=0; x < IMAGE_WIDTH; x++) {
       Ray ray;
@@ -74,6 +94,9 @@ int main() {
       framebuffer[fbIndex] = castRay(&ray, &scene);
     }
   }
+  end = omp_get_wtime();
+  double tdelta = end - start;
+  printf("%f pixels per second (%f total seconds)", (IMAGE_WIDTH * IMAGE_HEIGHT) / tdelta, tdelta);
 
   FILE *outPPM = fopen("out.ppm", "wb");
   writePPM(outPPM, framebuffer, IMAGE_WIDTH, IMAGE_HEIGHT);

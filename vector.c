@@ -21,11 +21,28 @@ float vec3fDotProduct(const Vec3f *vec1, const Vec3f *vec2) {
   return result;
 }
 
+Vec3f vec3fAdd(const Vec3f *vec1, const Vec3f *vec2) {
+  Vec3f result;
+  result.x = vec1->x + vec2->x;
+  result.y = vec1->y + vec2->y;
+  result.z = vec1->z + vec2->z;
+  return result;
+}
+
+
 Vec3f vec3fSubtract(const Vec3f *vec1, const Vec3f *vec2) {
   Vec3f result;
   result.x = vec1->x - vec2->x;
   result.y = vec1->y - vec2->y;
   result.z = vec1->z - vec2->z;
+  return result;
+}
+
+Vec3f vec3fMultf(const Vec3f *vec, float mult) {
+  Vec3f result;
+  result.x = vec->x * mult;
+  result.y = vec->y * mult;
+  result.z = vec->z * mult;
   return result;
 }
 
